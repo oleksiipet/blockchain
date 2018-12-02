@@ -1,7 +1,6 @@
 package blockchain;
 
 import java.util.Collections;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -10,43 +9,32 @@ import java.util.stream.Stream;
 
 public class Blockchain implements Iterable<Block> {
 
-  private final LinkedList<Block> blocks;
+  private final List<Block> blocks;
   private final Random random;
   private final String prefix;
   private final Persister persister;
 
-  public Blockchain(int N) {
-    persister = new Persister("blockchain.ser");
-    random = new Random();
-    prefix = Stream.iterate("0", x -> "0").limit(N).reduce("", (x, y) -> x + y);
-    if (persister.existsChain()) {
-      LinkedList<Block> blocks = (LinkedList<Block>) persister.load();
-      if (validate(blocks)) {
-        this.blocks = blocks;
-      } else {
-        Block firstBlock = initialBlockHead();
-        this.blocks = new LinkedList<>(Collections.singleton(firstBlock));
-      }
+  public Blockchain(int N, Persister persister) {
+    this.persister = persister;
+    this.random = new Random();
+    this.prefix = Stream.iterate("0", x -> "0")
+        .limit(N)
+        .reduce("", (x, y) -> x + y);
+
+    List<Block> blocks = persister.load();
+    if (!blocks.isEmpty() && validate(blocks)) {
+      this.blocks = blocks;
     } else {
-      Block firstBlock = initialBlockHead();
-      blocks = new LinkedList<>(Collections.singleton(firstBlock));
+      this.blocks = new LinkedList<>(Collections.singleton(
+          generateNextBlock(1, "0", "empty")));
+      persister.save(blocks);
     }
-    persister.save(blocks);
   }
 
 
   public void generate() {
-    Long timestamp = new Date().getTime();
-    Block tailBlock = blocks.getLast();
-    Integer magicNumber = random.nextInt();
-    String hash = StringUtil.applySha256(tailBlock.getHash() + "hello" + magicNumber);
-    while (!hash.startsWith(prefix)) {
-      magicNumber = random.nextInt();
-      hash = StringUtil.applySha256(tailBlock.getHash() + "hello" + magicNumber);
-    }
-
-    Block newBlock = new Block(tailBlock.getId() + 1, tailBlock.getHash(), hash, "hello", timestamp,
-        magicNumber);
+    Block tailBlock = blocks.get(blocks.size() - 1);
+    Block newBlock = generateNextBlock(tailBlock.getId() + 1, tailBlock.getHash(), "hello");
     blocks.add(newBlock);
     persister.save(blocks);
   }
@@ -71,17 +59,15 @@ public class Blockchain implements Iterable<Block> {
     return true;
   }
 
-  private Block initialBlockHead() {
-    Integer magicNumber = random.nextInt();
-    String hash = StringUtil.applySha256("0" + magicNumber);
-    while (!hash.startsWith(prefix)) {
+  private Block generateNextBlock(int id, String hashPreviousBlock, String data) {
+    long timestamp = System.currentTimeMillis();
+    Integer magicNumber;
+    String hash;
+    do {
       magicNumber = random.nextInt();
-      hash = StringUtil.applySha256("0" + magicNumber);
-    }
-    return new Block(1,
-        "0",
-        hash,
-        "empty",
-        new Date().getTime(), magicNumber);
+      hash = StringUtil.applySha256(hashPreviousBlock + magicNumber);
+    } while (!hash.startsWith(prefix));
+    return new Block(id, hashPreviousBlock, hash, data, timestamp, magicNumber,
+        System.currentTimeMillis() - timestamp);
   }
 }
