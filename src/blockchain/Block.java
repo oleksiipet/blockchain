@@ -5,6 +5,7 @@ import java.io.Serializable;
 public class Block implements Serializable {
 
   private final Integer id;
+  private final Long minerId;
   private final String hashPreviousBlock;
   private final String hash;
   private final String data;
@@ -13,9 +14,11 @@ public class Block implements Serializable {
   private final Long generationTime;
 
 
-  public Block(Integer id, String hashPreviousBlock, String hash, String data,
+  public Block(Integer id, Long minerId, String hashPreviousBlock, String hash,
+      String data,
       Long timestamp, Integer magicNumber, Long generationTime) {
     this.id = id;
+    this.minerId = minerId;
     this.hashPreviousBlock = hashPreviousBlock;
     this.hash = hash;
     this.data = data;
@@ -50,5 +53,9 @@ public class Block implements Serializable {
 
   public Long getGenerationTime() {
     return generationTime;
+  }
+
+  public Long getMinerId() {
+    return minerId;
   }
 }

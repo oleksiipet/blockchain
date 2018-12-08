@@ -1,54 +1,95 @@
 package blockchain;
 
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
-public class Blockchain implements Iterable<Block> {
+public class Blockchain {
+
+  private static final Long ACCEPTABLE_TIME = TimeUnit.SECONDS.toMillis(6);
 
   private final List<Block> blocks;
-  private final Random random;
-  private final String prefix;
+  private int prefixLength;
   private final Persister persister;
 
-  public Blockchain(int N, Persister persister) {
+  public Blockchain(Persister persister, BlockGenerator blockGenerator) {
     this.persister = persister;
-    this.random = new Random();
-    this.prefix = Stream.iterate("0", x -> "0")
-        .limit(N)
-        .reduce("", (x, y) -> x + y);
-
+    this.prefixLength = 0;
     List<Block> blocks = persister.load();
-    if (!blocks.isEmpty() && validate(blocks)) {
+    if (!blocks.isEmpty() && validateAllChain(blocks)) {
       this.blocks = blocks;
     } else {
       this.blocks = new LinkedList<>(Collections.singleton(
-          generateNextBlock(1, "0", "empty")));
+          blockGenerator.generateNextBlock(1, 0, "", "0", "")));
       persister.save(blocks);
     }
   }
 
+  public synchronized void accept(Block newBlock) {
+    if (isValid(newBlock)) {
+      outputAndAdjust(newBlock);
+      blocks.add(newBlock);
+      persister.save(blocks);
+    }
+  }
 
-  public void generate() {
+  public synchronized String getPrefix() {
+    return Stream.iterate("0", x -> "0")
+        .limit(prefixLength)
+        .reduce("", (x, y) -> x + y);
+  }
+
+  public synchronized Block tail() {
+    return blocks.get(blocks.size() - 1);
+  }
+
+  private boolean isValid(Block newBlock) {
     Block tailBlock = blocks.get(blocks.size() - 1);
-    Block newBlock = generateNextBlock(tailBlock.getId() + 1, tailBlock.getHash(), "hello");
-    blocks.add(newBlock);
-    persister.save(blocks);
+    if (!newBlock.getHash().startsWith(getPrefix()) || !newBlock.getHashPreviousBlock()
+        .equals(tailBlock.getHash())) {
+      return false;
+    }
+    return true;
   }
 
-  public boolean validate() {
-    return validate(blocks);
+  private void outputAndAdjust(Block newBlock) {
+    outputStats(newBlock);
+    adjustComplexity(newBlock);
   }
 
-  @Override
-  public Iterator<Block> iterator() {
-    return blocks.iterator();
+  private void outputStats(Block newBlock) {
+    System.out.printf("Block:\n");
+    System.out.printf("Id: %s\n", newBlock.getId());
+    System.out.printf("Created by miner # %s\n", newBlock.getMinerId());
+    System.out.printf("Timestamp: %s\n", newBlock.getTimestamp());
+    System.out.printf("Magic number: %s\n", newBlock.getMagicNumber());
+    System.out.printf("Hash of the previous block:\n%s\n", newBlock.getHashPreviousBlock());
+    System.out.printf("Hash of the block: \n%s\n", newBlock.getHash());
+    System.out
+        .printf("Block was generating for: %s seconds\n", newBlock.getGenerationTime() / 1000);
   }
 
-  private boolean validate(List<Block> blocks) {
+  private void adjustComplexity(Block newBlock) {
+    if (!withinAcceptable(newBlock.getGenerationTime())) {
+      if (ACCEPTABLE_TIME < newBlock.getGenerationTime()) {
+        System.out.printf("N was decreased to %s\n\n", prefixLength);
+        prefixLength--;
+      } else {
+        System.out.printf("N was increased to %s\n\n", prefixLength);
+        prefixLength++;
+      }
+    } else {
+      System.out.printf("N stays the same\n\n");
+    }
+  }
+
+  private boolean withinAcceptable(Long generationTime) {
+    return Math.abs(generationTime - ACCEPTABLE_TIME) <= 1000;
+  }
+
+  private boolean validateAllChain(List<Block> blocks) {
     for (int i = 1; i < blocks.size(); i++) {
       Block prev = blocks.get(i - 1);
       Block cur = blocks.get(i);
@@ -59,15 +100,4 @@ public class Blockchain implements Iterable<Block> {
     return true;
   }
 
-  private Block generateNextBlock(int id, String hashPreviousBlock, String data) {
-    long timestamp = System.currentTimeMillis();
-    Integer magicNumber;
-    String hash;
-    do {
-      magicNumber = random.nextInt();
-      hash = StringUtil.applySha256(hashPreviousBlock + magicNumber);
-    } while (!hash.startsWith(prefix));
-    return new Block(id, hashPreviousBlock, hash, data, timestamp, magicNumber,
-        System.currentTimeMillis() - timestamp);
-  }
 }

@@ -1,32 +1,27 @@
 package blockchain;
 
-import java.util.Scanner;
+import blockchain.miners.Miner;
 
 public class Main {
 
-  public static void main(String[] args) {
-    try (Scanner scanner = new Scanner(System.in)) {
-      System.out.print("Enter how many zeros the hash must starts with: ");
+  public static void main(String[] args) throws InterruptedException {
 
-      Persister persister = new FilePersister("blockchain.ser");
-      Blockchain blockchain = new Blockchain(scanner.nextInt(), persister);
+    int NUMBER_OF_MINERS = 10;
 
-      for (int i = 0; i < 10; i++) {
-        blockchain.generate();
-      }
+    Persister persister = new FilePersister("blockchain.ser");
+    BlockGenerator blockGenerator = new BlockGenerator();
+    Blockchain blockchain = new Blockchain(persister, blockGenerator);
 
-      for (Block block : blockchain) {
-        System.out.printf("Block:\n");
-        System.out.printf("Id: %s\n", block.getId());
-        System.out.printf("Timestamp: %s\n", block.getTimestamp());
-        System.out.printf("Magic number: %s\n", block.getMagicNumber());
-        System.out.printf("Hash of the previous block:\n%s\n", block.getHashPreviousBlock());
-        System.out.printf("Hash of the block: \n%s\n", block.getHash());
-        System.out
-            .printf("Block was generating for: %s seconds\n\n", block.getGenerationTime() / 1000);
-      }
-
-      System.out.printf("Valid: %s\n", blockchain.validate());
+    Thread[] miners = new Thread[NUMBER_OF_MINERS];
+    for (int i = 0; i < NUMBER_OF_MINERS; i++) {
+      miners[i] = new Thread(new Miner(blockchain, blockGenerator, Long.valueOf(i)));
+    }
+    for (Thread miner : miners) {
+      miner.start();
+    }
+    Thread.sleep(10000);
+    for (Thread miner : miners) {
+      miner.interrupt();
     }
   }
 }
