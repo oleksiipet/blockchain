@@ -1,5 +1,6 @@
-package blockchain;
+package blockchain.io;
 
+import blockchain.Block;
 import java.util.List;
 
 public interface Persister {

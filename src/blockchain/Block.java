@@ -15,8 +15,7 @@ public class Block implements Serializable {
 
 
   public Block(Integer id, Long minerId, String hashPreviousBlock, String hash,
-      String data,
-      Long timestamp, Integer magicNumber, Long generationTime) {
+      String data, Long timestamp, Integer magicNumber, Long generationTime) {
     this.id = id;
     this.minerId = minerId;
     this.hashPreviousBlock = hashPreviousBlock;

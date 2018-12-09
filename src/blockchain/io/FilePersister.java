@@ -1,5 +1,6 @@
-package blockchain;
+package blockchain.io;
 
+import blockchain.Block;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -9,7 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 
-class FilePersister implements Persister {
+public class FilePersister implements Persister {
 
 
   private final String filename;
