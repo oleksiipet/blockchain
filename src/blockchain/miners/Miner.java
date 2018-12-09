@@ -2,6 +2,7 @@ package blockchain.miners;
 
 import blockchain.Block;
 import blockchain.Blockchain;
+import blockchain.crypto.Sign;
 import blockchain.utils.StringUtil;
 import java.util.Random;
 
@@ -9,11 +10,13 @@ public class Miner implements Runnable {
 
   private final Blockchain<?> blockchain;
   private final Long id;
+  private Sign sign;
   private final Random random;
 
-  public Miner(Blockchain<?> blockchain, Long id) {
+  public Miner(Blockchain<?> blockchain, Long id, Sign sign) {
     this.blockchain = blockchain;
     this.id = id;
+    this.sign = sign;
     this.random = new Random();
   }
 
@@ -24,18 +27,23 @@ public class Miner implements Runnable {
       Block prev;
       String prefix;
       String data;
-      Integer magicNumber;
+      int magicNumber;
       String hash;
       do {
         prev = blockchain.tail();
         prefix = blockchain.getPrefix();
         data = blockchain.pendingData();
         magicNumber = random.nextInt();
-        hash = StringUtil.applySha256(prev.getHash() + magicNumber + data);
+        String dataUsedForHash = prev.getHash() + magicNumber + data;
+        hash = StringUtil.applySha256(dataUsedForHash);
       } while (!hash.startsWith(prefix));
-      Block newBlock = new Block(prev.getId() + 1, id, prev.getHash(), hash, data, timestamp,
-          magicNumber,
-          System.currentTimeMillis() - timestamp);
+      Block newBlock = null;
+      try {
+        newBlock = new Block(prev.getId() + 1, id, prev.getHash(), hash, data,
+            sign.sign(data), timestamp, magicNumber, System.currentTimeMillis() - timestamp);
+      } catch (Exception e) {
+        Thread.currentThread().interrupt();
+      }
       blockchain.accept(newBlock);
     }
   }

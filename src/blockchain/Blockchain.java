@@ -1,8 +1,10 @@
 package blockchain;
 
+import blockchain.crypto.SignValidator;
 import blockchain.data.format.DataFormatter;
 import blockchain.io.Persister;
 import blockchain.utils.StringUtil;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -19,11 +21,13 @@ public class Blockchain<T> {
   private int prefixLength;
   private final Persister persister;
   private DataFormatter<T> dataFormatter;
+  private SignValidator signValidator;
 
   public Blockchain(Persister persister,
-      DataFormatter<T> dataFormatter) {
+      DataFormatter<T> dataFormatter, SignValidator signValidator) {
     this.persister = persister;
     this.dataFormatter = dataFormatter;
+    this.signValidator = signValidator;
     this.prefixLength = 0;
     List<Block> blocks = persister.load();
     if (!blocks.isEmpty() && validateAllChain(blocks)) {
@@ -32,7 +36,7 @@ public class Blockchain<T> {
       this.blocks = new LinkedList<>(Collections.singleton(
           new Block(0, 0L, "0", StringUtil.applySha256("0" + 0),
               "no messages",
-              System.currentTimeMillis(), 0, 0L)));
+              null, System.currentTimeMillis(), 0, 0L)));
       persister.save(blocks);
     }
     pendingMessages = new LinkedList<>();
@@ -73,12 +77,26 @@ public class Blockchain<T> {
   }
 
   private boolean isValid(Block newBlock) {
-    Block tailBlock = blocks.get(blocks.size() - 1);
-    if (!newBlock.getHash().startsWith(getPrefix()) || !newBlock.getHashPreviousBlock()
-        .equals(tailBlock.getHash())) {
+    try {
+      Block tailBlock = blocks.get(blocks.size() - 1);
+      if (isBlocksNotRelatedOrLowProof(newBlock, tailBlock) ||
+          !isMessageSigned(newBlock)) {
+        return false;
+      }
+    } catch (Exception e) {
       return false;
     }
     return true;
+  }
+
+  private boolean isMessageSigned(Block newBlock) throws Exception {
+    return signValidator.verifySignature(newBlock.getData().getBytes(StandardCharsets.UTF_8),
+        newBlock.getDataSignature());
+  }
+
+  private boolean isBlocksNotRelatedOrLowProof(Block newBlock, Block tailBlock) {
+    return !newBlock.getHash().startsWith(getPrefix()) || !newBlock.getHashPreviousBlock()
+        .equals(tailBlock.getHash());
   }
 
   private void outputAndAdjust(Block newBlock) {
