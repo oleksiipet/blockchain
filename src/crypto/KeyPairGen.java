@@ -16,29 +16,31 @@ public class KeyPairGen {
   private PrivateKey privateKey;
   private PublicKey publicKey;
 
-  public KeyPairGen(int keyLen) throws NoSuchAlgorithmException {
-    this.keyGen = keyGen.getInstance("RSA");
+  private KeyPairGen(int keyLen) throws NoSuchAlgorithmException {
+    this.keyGen = KeyPairGenerator.getInstance("RSA");
     this.keyGen.initialize(keyLen);
   }
 
 
-  public void genPair() {
+  private void genPair() {
     pair = keyGen.generateKeyPair();
     privateKey = pair.getPrivate();
     publicKey = pair.getPublic();
   }
 
-  public PrivateKey getPrivateKey() {
+  private PrivateKey getPrivateKey() {
     return privateKey;
   }
 
-  public PublicKey getPublicKey() {
+  private PublicKey getPublicKey() {
     return publicKey;
   }
 
   public static void main(String[] args) throws Exception {
     KeyPairGen gen = new KeyPairGen(1024);
+
     gen.genPair();
+
     writeToFile("keys/publicKey", gen.getPublicKey().getEncoded());
     writeToFile("keys/privateKey", gen.getPrivateKey().getEncoded());
   }
