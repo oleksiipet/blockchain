@@ -25,8 +25,6 @@ public class Main {
         System.out
             .printf("Block was generating for: %s seconds\n\n", block.getGenerationTime() / 1000);
       }
-
-      System.out.printf("Valid: %s\n", blockchain.validate());
     }
   }
 }

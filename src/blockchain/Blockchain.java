@@ -26,7 +26,7 @@ public class Blockchain implements Iterable<Block> {
       this.blocks = blocks;
     } else {
       this.blocks = new LinkedList<>(Collections.singleton(
-          generateNextBlock(1, "0", "empty")));
+          generateNextBlock(1, "0")));
       persister.save(blocks);
     }
   }
@@ -34,7 +34,7 @@ public class Blockchain implements Iterable<Block> {
 
   public void generate() {
     Block tailBlock = blocks.get(blocks.size() - 1);
-    Block newBlock = generateNextBlock(tailBlock.getId() + 1, tailBlock.getHash(), "hello");
+    Block newBlock = generateNextBlock(tailBlock.getId() + 1, tailBlock.getHash());
     blocks.add(newBlock);
     persister.save(blocks);
   }
@@ -59,7 +59,7 @@ public class Blockchain implements Iterable<Block> {
     return true;
   }
 
-  private Block generateNextBlock(int id, String hashPreviousBlock, String data) {
+  private Block generateNextBlock(int id, String hashPreviousBlock) {
     long timestamp = System.currentTimeMillis();
     Integer magicNumber;
     String hash;
@@ -67,7 +67,7 @@ public class Blockchain implements Iterable<Block> {
       magicNumber = random.nextInt();
       hash = StringUtil.applySha256(hashPreviousBlock + magicNumber);
     } while (!hash.startsWith(prefix));
-    return new Block(id, hashPreviousBlock, hash, data, timestamp, magicNumber,
+    return new Block(id, hashPreviousBlock, hash, timestamp, magicNumber,
         System.currentTimeMillis() - timestamp);
   }
 }

@@ -7,18 +7,16 @@ public class Block implements Serializable {
   private final Integer id;
   private final String hashPreviousBlock;
   private final String hash;
-  private final String data;
   private final Long timestamp;
   private final Integer magicNumber;
   private final Long generationTime;
 
 
-  public Block(Integer id, String hashPreviousBlock, String hash, String data,
+  public Block(Integer id, String hashPreviousBlock, String hash,
       Long timestamp, Integer magicNumber, Long generationTime) {
     this.id = id;
     this.hashPreviousBlock = hashPreviousBlock;
     this.hash = hash;
-    this.data = data;
     this.timestamp = timestamp;
     this.magicNumber = magicNumber;
     this.generationTime = generationTime;
@@ -38,10 +36,6 @@ public class Block implements Serializable {
 
   public Long getTimestamp() {
     return timestamp;
-  }
-
-  public String getData() {
-    return data;
   }
 
   public Integer getMagicNumber() {
