@@ -5,16 +5,13 @@ public class Block {
   private final Integer id;
   private final String hashPreviousBlock;
   private final String hash;
-  private final String data;
   private final Long timestamp;
 
 
-  public Block(Integer id, String hashPreviousBlock, String hash, String data,
-      Long timestamp) {
+  public Block(Integer id, String hashPreviousBlock, String hash, Long timestamp) {
     this.id = id;
     this.hashPreviousBlock = hashPreviousBlock;
     this.hash = hash;
-    this.data = data;
     this.timestamp = timestamp;
   }
 
@@ -32,9 +29,5 @@ public class Block {
 
   public Long getTimestamp() {
     return timestamp;
-  }
-
-  public String getData() {
-    return data;
   }
 }

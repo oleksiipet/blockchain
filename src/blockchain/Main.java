@@ -15,7 +15,5 @@ public class Main {
       System.out.printf("Hash of the previous block:\n%s\n", block.getHashPreviousBlock());
       System.out.printf("Hash of the block: \n%s\n\n", block.getHash());
     }
-
-    System.out.println(blockchain.validate());
   }
 }

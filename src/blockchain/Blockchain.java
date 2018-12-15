@@ -13,8 +13,7 @@ public class Blockchain implements Iterable<Block> {
     blocks = new LinkedList<>(Collections.singleton(
         new Block(1,
             "0",
-            StringUtil.applySha256("0" + "pivot"),
-            "pivot",
+            StringUtil.applySha256("0"),
             new Date().getTime()))
     );
   }
@@ -22,8 +21,8 @@ public class Blockchain implements Iterable<Block> {
   public void generate() {
     Long timestamp = new Date().getTime();
     Block tailBlock = blocks.getLast();
-    String hash = StringUtil.applySha256(tailBlock.getHash() + "hello");
-    blocks.add(new Block(tailBlock.getId() + 1, tailBlock.getHash(), hash, "hello", timestamp));
+    String hash = StringUtil.applySha256(tailBlock.getHash());
+    blocks.add(new Block(tailBlock.getId() + 1, tailBlock.getHash(), hash, timestamp));
   }
 
   public boolean validate() {
