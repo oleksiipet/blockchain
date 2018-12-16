@@ -9,12 +9,11 @@ public class Main {
     int NUMBER_OF_MINERS = 10;
 
     Persister persister = new FilePersister("blockchain.ser");
-    BlockGenerator blockGenerator = new BlockGenerator();
-    Blockchain blockchain = new Blockchain(persister, blockGenerator);
+    Blockchain blockchain = new Blockchain(persister);
 
     Thread[] miners = new Thread[NUMBER_OF_MINERS];
     for (int i = 0; i < NUMBER_OF_MINERS; i++) {
-      miners[i] = new Thread(new Miner(blockchain, blockGenerator, Long.valueOf(i)));
+      miners[i] = new Thread(new Miner(blockchain, Long.valueOf(i)));
     }
     for (Thread miner : miners) {
       miner.start();

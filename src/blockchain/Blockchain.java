@@ -1,6 +1,7 @@
 package blockchain;
 
 import java.util.Collections;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -8,13 +9,13 @@ import java.util.stream.Stream;
 
 public class Blockchain {
 
-  private static final Long ACCEPTABLE_TIME = TimeUnit.SECONDS.toMillis(6);
+  private static final Long ACCEPTABLE_TIME = TimeUnit.SECONDS.toMillis(5);
 
   private final List<Block> blocks;
   private int prefixLength;
   private final Persister persister;
 
-  public Blockchain(Persister persister, BlockGenerator blockGenerator) {
+  public Blockchain(Persister persister) {
     this.persister = persister;
     this.prefixLength = 0;
     List<Block> blocks = persister.load();
@@ -22,7 +23,7 @@ public class Blockchain {
       this.blocks = blocks;
     } else {
       this.blocks = new LinkedList<>(Collections.singleton(
-          blockGenerator.generateNextBlock(1, 0, "", "0", "")));
+          new Block(1, 0L, "", "0", new Date().getTime(), 0)));
       persister.save(blocks);
     }
   }
@@ -68,25 +69,31 @@ public class Blockchain {
     System.out.printf("Hash of the previous block:\n%s\n", newBlock.getHashPreviousBlock());
     System.out.printf("Hash of the block: \n%s\n", newBlock.getHash());
     System.out
-        .printf("Block was generating for: %s seconds\n", newBlock.getGenerationTime() / 1000);
+        .printf("Block was generating for: %s seconds\n", getGenerationTime(newBlock) / 1000);
   }
 
   private void adjustComplexity(Block newBlock) {
-    if (!withinAcceptable(newBlock.getGenerationTime())) {
-      if (ACCEPTABLE_TIME < newBlock.getGenerationTime()) {
+    if (!withinAcceptable(newBlock)) {
+      if (ACCEPTABLE_TIME < getGenerationTime(newBlock)) {
+        if (prefixLength > 0) {
+          prefixLength--;
+        }
         System.out.printf("N was decreased to %s\n\n", prefixLength);
-        prefixLength--;
       } else {
-        System.out.printf("N was increased to %s\n\n", prefixLength);
         prefixLength++;
+        System.out.printf("N was increased to %s\n\n", prefixLength);
       }
     } else {
       System.out.printf("N stays the same\n\n");
     }
   }
 
-  private boolean withinAcceptable(Long generationTime) {
-    return Math.abs(generationTime - ACCEPTABLE_TIME) <= 1000;
+  private Long getGenerationTime(Block newBlock) {
+    return tail() == null ? 0 : (newBlock.getTimestamp() - tail().getTimestamp());
+  }
+
+  private boolean withinAcceptable(Block newBlock) {
+    return Math.abs(getGenerationTime(newBlock) - ACCEPTABLE_TIME) <= 1000;
   }
 
   private boolean validateAllChain(List<Block> blocks) {
