@@ -20,23 +20,20 @@ public class Miner implements Runnable {
   @Override
   public void run() {
     while (!Thread.currentThread().isInterrupted()) {
-      long timestamp = System.currentTimeMillis();
-      Block prev;
-      String prefix;
-      String data;
-      Integer magicNumber;
-      String hash;
-      do {
-        prev = blockchain.tail();
-        prefix = blockchain.getPrefix();
-        data = blockchain.pendingData();
-        magicNumber = random.nextInt();
-        hash = StringUtil.applySha256(prev.getHash() + magicNumber + data);
-      } while (!hash.startsWith(prefix));
-      Block newBlock = new Block(prev.getId() + 1, id, prev.getHash(), hash, data, timestamp,
-          magicNumber,
-          System.currentTimeMillis() - timestamp);
-      blockchain.accept(newBlock);
+      Block prev = blockchain.tail();
+      blockchain.accept(generateNextBlock(prev.getId() + 1, id, prev.getHash()));
     }
+  }
+
+  private Block generateNextBlock(int id, long minerId, String previousHash) {
+    Integer magicNumber;
+    String hash;
+    String prefix;
+    do {
+      prefix = blockchain.getPrefix();
+      magicNumber = random.nextInt();
+      hash = StringUtil.applySha256(previousHash + magicNumber);
+    } while (!hash.startsWith(prefix));
+    return new Block(id, minerId, previousHash, hash, System.currentTimeMillis(), magicNumber);
   }
 }

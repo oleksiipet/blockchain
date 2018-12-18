@@ -22,9 +22,11 @@ public class Main {
     for (int i = 0; i < NUMBER_OF_MINERS; i++) {
       miners[i] = new Thread(new Miner(blockchain, Long.valueOf(i)));
     }
+
     for (Thread miner : miners) {
       miner.start();
     }
+
     Thread.sleep(1000);
     blockchain.appendData(new Message("Tom", "Hey, I'm first!"));
     blockchain.appendData(new Message("Sarah", "It's not fair!"));
