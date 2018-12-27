@@ -22,9 +22,10 @@ public class Blockchain<T> {
   private final Persister persister;
   private DataFormatter<T> dataFormatter;
   private SignValidator signValidator;
+  private long uniqueId = 1;
 
-  public Blockchain(Persister persister,
-      DataFormatter<T> dataFormatter, SignValidator signValidator) {
+  public Blockchain(Persister persister, DataFormatter<T> dataFormatter,
+      SignValidator signValidator) {
     this.persister = persister;
     this.dataFormatter = dataFormatter;
     this.signValidator = signValidator;
@@ -74,6 +75,10 @@ public class Blockchain<T> {
 
   public synchronized Block tail() {
     return blocks.get(blocks.size() - 1);
+  }
+
+  public synchronized long incrementAndGetUniqueId() {
+    return uniqueId++;
   }
 
   private boolean isValid(Block newBlock) {

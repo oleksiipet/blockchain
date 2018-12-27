@@ -8,8 +8,8 @@ public class Block implements Serializable {
   private final Long minerId;
   private final String hashPreviousBlock;
   private final String hash;
-  private final String data;
-  private final byte[] dataSignature;
+  private String data;
+  private byte[] dataSignature;
   private final Long timestamp;
   private final Integer magicNumber;
   private final Long generationTime;
