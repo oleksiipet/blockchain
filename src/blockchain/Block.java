@@ -14,13 +14,14 @@ public class Block implements Serializable {
 
 
   public Block(Integer id, Long minerId, String hashPreviousBlock, String hash, Long timestamp,
-      Integer magicNumber) {
+      Integer magicNumber, String data) {
     this.id = id;
     this.minerId = minerId;
     this.hashPreviousBlock = hashPreviousBlock;
     this.hash = hash;
     this.timestamp = timestamp;
     this.magicNumber = magicNumber;
+    this.data = data;
   }
 
   public Integer getId() {

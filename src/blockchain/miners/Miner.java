@@ -1,8 +1,10 @@
 package blockchain.miners;
 
 import blockchain.Block;
+import blockchain.BlockBuilder;
 import blockchain.Blockchain;
 import blockchain.utils.StringUtil;
+import java.util.Date;
 import java.util.Random;
 
 public class Miner implements Runnable {
@@ -26,6 +28,10 @@ public class Miner implements Runnable {
   }
 
   private Block generateNextBlock(int id, long minerId, String previousHash) {
+    BlockBuilder blockBuilder = new BlockBuilder()
+        .withId(id)
+        .withMinerId(minerId)
+        .withHashPreviousBlock(previousHash);
     Integer magicNumber;
     String hash;
     String prefix;
@@ -33,7 +39,10 @@ public class Miner implements Runnable {
       prefix = blockchain.getPrefix();
       magicNumber = random.nextInt();
       hash = StringUtil.applySha256(previousHash + magicNumber);
+      blockBuilder = blockBuilder.withHash(hash)
+          .withMagicNumber(magicNumber)
+          .withTimestamp(new Date().getTime());
     } while (!hash.startsWith(prefix));
-    return new Block(id, minerId, previousHash, hash, System.currentTimeMillis(), magicNumber);
+    return blockBuilder.build();
   }
 }

@@ -5,11 +5,16 @@ import blockchain.data.format.PlanMessageFormat;
 import blockchain.io.FilePersister;
 import blockchain.io.Persister;
 import blockchain.miners.Miner;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Main {
 
   private static final String OUTPUT_FILE_NAME = "blockchain.ser";
   private static final int NUMBER_OF_MINERS = 10;
+  private static AtomicLong ids = new AtomicLong(1);
 
   public static void main(String[] args) throws InterruptedException {
 
@@ -17,15 +22,12 @@ public class Main {
     Blockchain<Message> blockchain = new Blockchain<>(persister,
         new PlanMessageFormat());
 
-    Thread[] miners = new Thread[NUMBER_OF_MINERS];
+    List<Thread> miners = Stream
+        .generate(() -> new Thread(new Miner(blockchain, ids.getAndIncrement())))
+        .limit(NUMBER_OF_MINERS)
+        .collect(Collectors.toList());
 
-    for (int i = 0; i < NUMBER_OF_MINERS; i++) {
-      miners[i] = new Thread(new Miner(blockchain, Long.valueOf(i)));
-    }
-
-    for (Thread miner : miners) {
-      miner.start();
-    }
+    miners.forEach(Thread::start);
 
     Thread.sleep(1000);
     blockchain.appendData(new Message("Tom", "Hey, I'm first!"));
@@ -39,8 +41,6 @@ public class Main {
     blockchain.appendData(new Message("Tom", "You're welcome :)"));
     blockchain.appendData(new Message("Nick", "Hey Tom, nice chat"));
 
-    for (Thread miner : miners) {
-      miner.interrupt();
-    }
+    miners.forEach(Thread::interrupt);
   }
 }

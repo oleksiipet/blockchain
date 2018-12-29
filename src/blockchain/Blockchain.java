@@ -6,21 +6,29 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 import java.util.stream.Stream;
 
 public class Blockchain<T> {
 
   private static final Long ACCEPTABLE_TIME = TimeUnit.SECONDS.toMillis(5);
 
+  private final ReentrantReadWriteLock readWritelock;
+
   private final List<Block> blocks;
   private final List<T> pendingMessages;
-  private int prefixLength;
   private final Persister persister;
+
+  private int prefixLength;
   private DataFormatter<T> dataFormatter;
 
   public Blockchain(Persister persister, DataFormatter<T> dataFormatter) {
+    this.readWritelock = new ReentrantReadWriteLock();
     this.persister = persister;
     this.dataFormatter = dataFormatter;
     this.prefixLength = 0;
@@ -28,52 +36,89 @@ public class Blockchain<T> {
     if (!blocks.isEmpty() && validateAllChain(blocks)) {
       this.blocks = blocks;
     } else {
+      new BlockBuilder().build();
       this.blocks = new LinkedList<>(Collections.singleton(
-          new Block(1, 0L, "", "0", new Date().getTime(), 0)));
+          new BlockBuilder()
+              .withId(1)
+              .withMinerId(0L)
+              .withHashPreviousBlock("")
+              .withHash("0")
+              .withMagicNumber(0)
+              .withTimestamp(new Date().getTime()).build()));
       persister.save(blocks);
     }
     pendingMessages = new LinkedList<>();
   }
 
-  public synchronized void accept(Block newBlock) {
-    if (isValid(newBlock)) {
-      newBlock.setData(pendingData());
-      outputAndAdjust(newBlock);
-      blocks.add(newBlock);
-      pendingMessages.clear();
-      persister.save(blocks);
+  public void accept(Block newBlock) {
+    WriteLock writeLock = readWritelock.writeLock();
+    try {
+      writeLock.lock();
+      if (isValid(newBlock)) {
+        newBlock.setData(pendingData());
+        outputAndAdjust(newBlock);
+        blocks.add(newBlock);
+        pendingMessages.clear();
+        persister.save(blocks);
+      }
+    } finally {
+      writeLock.unlock();
     }
   }
 
-  public synchronized void appendData(T data) {
-    pendingMessages.add(data);
-  }
-
-  public synchronized String getPrefix() {
-    return Stream.iterate("0", x -> "0")
-        .limit(prefixLength)
-        .reduce("", (x, y) -> x + y);
-  }
-
-  public synchronized String pendingData() {
-    StringJoiner stringJoiner = new StringJoiner("\n");
-    if (pendingMessages.isEmpty()) {
-      return "no messages";
+  public void appendData(T data) {
+    WriteLock writeLock = readWritelock.writeLock();
+    try {
+      writeLock.lock();
+      pendingMessages.add(data);
+    } finally {
+      writeLock.unlock();
     }
-    pendingMessages.stream()
-        .map(dataFormatter::format)
-        .forEach(stringJoiner::add);
-    return stringJoiner.toString();
   }
 
-  public synchronized Block tail() {
-    return blocks.get(blocks.size() - 1);
+  public String getPrefix() {
+    ReadLock readLock = readWritelock.readLock();
+    try {
+      readLock.lock();
+      return Stream.iterate("0", x -> "0")
+          .limit(prefixLength)
+          .reduce("", (x, y) -> x + y);
+    } finally {
+      readLock.unlock();
+    }
+  }
+
+  public String pendingData() {
+    ReadLock readLock = readWritelock.readLock();
+    try {
+      readLock.lock();
+      StringJoiner stringJoiner = new StringJoiner("\n");
+      if (pendingMessages.isEmpty()) {
+        return "no messages";
+      }
+      pendingMessages.stream()
+          .map(dataFormatter::format)
+          .forEach(stringJoiner::add);
+      return stringJoiner.toString();
+    } finally {
+      readLock.unlock();
+    }
+  }
+
+  public Block tail() {
+    ReadLock readLock = readWritelock.readLock();
+    try {
+      readLock.lock();
+      return blocks.get(blocks.size() - 1);
+    } finally {
+      readLock.unlock();
+    }
   }
 
   private boolean isValid(Block newBlock) {
     Block tailBlock = blocks.get(blocks.size() - 1);
-    if (!newBlock.getHash().startsWith(getPrefix()) || !newBlock.getHashPreviousBlock()
-        .equals(tailBlock.getHash())) {
+    if (!newBlock.getHash().startsWith(getPrefix()) || !Objects
+        .equals(newBlock.getHashPreviousBlock(), tailBlock.getHash())) {
       return false;
     }
     return true;
@@ -125,7 +170,7 @@ public class Blockchain<T> {
     for (int i = 1; i < blocks.size(); i++) {
       Block prev = blocks.get(i - 1);
       Block cur = blocks.get(i);
-      if (!cur.getHashPreviousBlock().equals(prev.getHash())) {
+      if (!Objects.equals(prev.getHash(), cur.getHashPreviousBlock())) {
         return false;
       }
     }
