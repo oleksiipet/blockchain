@@ -1,16 +1,18 @@
 package blockchain.io;
 
 import blockchain.Block;
+import blockchain.data.SignedData;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 
-public class FilePersister implements Persister {
+public class FilePersister<T extends SignedData & Serializable> implements Persister<T> {
 
 
   private final String filename;
@@ -20,7 +22,7 @@ public class FilePersister implements Persister {
   }
 
   @Override
-  public void save(List<Block> blockchain) {
+  public void save(List<Block<T>> blockchain) {
     try (FileOutputStream fileOutputStream = new FileOutputStream(filename);
         ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream)) {
       objectOutputStream.writeObject(blockchain);
@@ -30,11 +32,11 @@ public class FilePersister implements Persister {
   }
 
   @Override
-  public List<Block> load() {
+  public List<Block<T>> load() {
     if (fileExists()) {
       try (FileInputStream fileInputStream = new FileInputStream(filename);
           ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream)) {
-        return (List<Block>) objectInputStream.readObject();
+        return (List<Block<T>>) objectInputStream.readObject();
       } catch (IOException | ClassNotFoundException e) {
         return List.of();
       }

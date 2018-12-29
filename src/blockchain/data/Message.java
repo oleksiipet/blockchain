@@ -1,13 +1,21 @@
 package blockchain.data;
 
-public class Message {
+import java.io.Serializable;
 
+public class Message implements SignedData, Serializable {
+
+  private final Integer id;
   private final String author;
   private final String text;
+  private final byte[] dataSignature;
+  private final byte[] publicKey;
 
-  public Message(String author, String text) {
+  public Message(Integer id, String author, String text, byte[] dataSignature, byte[] publicKey) {
+    this.id = id;
     this.author = author;
     this.text = text;
+    this.dataSignature = dataSignature;
+    this.publicKey = publicKey;
   }
 
   public String getAuthor() {
@@ -16,5 +24,20 @@ public class Message {
 
   public String getText() {
     return text;
+  }
+
+  @Override
+  public Integer id() {
+    return id;
+  }
+
+  @Override
+  public byte[] dataSignature() {
+    return dataSignature;
+  }
+
+  @Override
+  public byte[] publicKey() {
+    return publicKey;
   }
 }

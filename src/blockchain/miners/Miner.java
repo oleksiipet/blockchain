@@ -1,50 +1,48 @@
 package blockchain.miners;
 
 import blockchain.Block;
+import blockchain.BlockBuilder;
 import blockchain.Blockchain;
-import blockchain.crypto.Sign;
 import blockchain.utils.StringUtil;
+import java.util.Date;
 import java.util.Random;
 
 public class Miner implements Runnable {
 
   private final Blockchain<?> blockchain;
   private final Long id;
-  private Sign sign;
   private final Random random;
 
-  public Miner(Blockchain<?> blockchain, Long id, Sign sign) {
+  public Miner(Blockchain<?> blockchain, Long id) {
     this.blockchain = blockchain;
     this.id = id;
-    this.sign = sign;
     this.random = new Random();
   }
 
   @Override
   public void run() {
     while (!Thread.currentThread().isInterrupted()) {
-      long timestamp = System.currentTimeMillis();
-      Block prev;
-      String prefix;
-      String data;
-      int magicNumber;
-      String hash;
-      do {
-        prev = blockchain.tail();
-        prefix = blockchain.getPrefix();
-        data = blockchain.pendingData();
-        magicNumber = random.nextInt();
-        String dataUsedForHash = prev.getHash() + magicNumber + data;
-        hash = StringUtil.applySha256(dataUsedForHash);
-      } while (!hash.startsWith(prefix));
-      Block newBlock = null;
-      try {
-        newBlock = new Block(prev.getId() + 1, id, prev.getHash(), hash, data,
-            sign.sign(data), timestamp, magicNumber, System.currentTimeMillis() - timestamp);
-      } catch (Exception e) {
-        Thread.currentThread().interrupt();
-      }
-      blockchain.accept(newBlock);
+      Block prev = blockchain.tail();
+      blockchain.accept(generateNextBlock(prev.getId() + 1, id, prev.getHash()));
     }
+  }
+
+  private Block generateNextBlock(int blockId, long minerId, String previousHash) {
+    BlockBuilder blockBuilder = new BlockBuilder()
+        .withId(blockId)
+        .withMinerId(minerId)
+        .withHashPreviousBlock(previousHash);
+    Integer magicNumber;
+    String hash;
+    String prefix;
+    do {
+      prefix = blockchain.getPrefix();
+      magicNumber = random.nextInt();
+      hash = StringUtil.applySha256(previousHash + magicNumber);
+      blockBuilder = blockBuilder.withHash(hash)
+          .withMagicNumber(magicNumber)
+          .withTimestamp(new Date().getTime());
+    } while (!hash.startsWith(prefix));
+    return blockBuilder.build();
   }
 }

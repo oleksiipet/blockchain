@@ -2,7 +2,7 @@ package blockchain.data.format;
 
 import blockchain.data.Message;
 
-public class PlanMessageFormat implements DataFormatter<Message> {
+public class PlainMessageFormat implements DataFormatter<Message> {
 
   @Override
   public String format(Message message) {

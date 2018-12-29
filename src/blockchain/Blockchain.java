@@ -1,7 +1,11 @@
 package blockchain;
 
+import blockchain.crypto.SignValidator;
+import blockchain.data.SignedData;
 import blockchain.data.format.DataFormatter;
 import blockchain.io.Persister;
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedList;
@@ -9,45 +13,52 @@ import java.util.List;
 import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class Blockchain<T> {
+public class Blockchain<T extends SignedData & Serializable> {
 
   private static final Long ACCEPTABLE_TIME = TimeUnit.SECONDS.toMillis(5);
 
   private final ReentrantReadWriteLock readWritelock;
 
-  private final List<Block> blocks;
+  private final List<Block<T>> blocks;
   private final List<T> pendingMessages;
   private final Persister persister;
 
   private int prefixLength;
   private DataFormatter<T> dataFormatter;
+  private SignValidator signValidator;
 
-  public Blockchain(Persister persister, DataFormatter<T> dataFormatter) {
+  private AtomicInteger idGenerator;
+
+  public Blockchain(Persister<T> persister, DataFormatter<T> dataFormatter,
+      SignValidator signValidator) {
     this.readWritelock = new ReentrantReadWriteLock();
     this.persister = persister;
     this.dataFormatter = dataFormatter;
+    this.signValidator = signValidator;
     this.prefixLength = 0;
-    List<Block> blocks = persister.load();
-    if (!blocks.isEmpty() && validateAllChain(blocks)) {
-      this.blocks = blocks;
+    List<Block<T>> fileBlocks = persister.load();
+    if (!fileBlocks.isEmpty() && validateAllChain(fileBlocks)) {
+      this.blocks = fileBlocks;
     } else {
-      new BlockBuilder().build();
       this.blocks = new LinkedList<>(Collections.singleton(
-          new BlockBuilder()
+          new BlockBuilder<T>()
               .withId(1)
               .withMinerId(0L)
               .withHashPreviousBlock("")
               .withHash("0")
               .withMagicNumber(0)
               .withTimestamp(new Date().getTime()).build()));
-      persister.save(blocks);
+      persister.save(fileBlocks);
     }
     pendingMessages = new LinkedList<>();
+    this.idGenerator = new AtomicInteger(blocks.get(blocks.size() - 1).getId());
   }
 
   public void accept(Block newBlock) {
@@ -55,7 +66,7 @@ public class Blockchain<T> {
     try {
       writeLock.lock();
       if (isValid(newBlock)) {
-        newBlock.setData(pendingData());
+        newBlock.setData(new ArrayList<>(pendingMessages));
         outputAndAdjust(newBlock);
         blocks.add(newBlock);
         pendingMessages.clear();
@@ -70,7 +81,9 @@ public class Blockchain<T> {
     WriteLock writeLock = readWritelock.writeLock();
     try {
       writeLock.lock();
-      pendingMessages.add(data);
+      if (isSigned(dataFormatter.format(data), data.dataSignature())) {
+        pendingMessages.add(data);
+      }
     } finally {
       writeLock.unlock();
     }
@@ -115,6 +128,18 @@ public class Blockchain<T> {
     }
   }
 
+  public Integer nextId() {
+    return idGenerator.incrementAndGet();
+  }
+
+  private boolean isSigned(String data, byte[] dataSignature) {
+    try {
+      return true;//return signValidator.verifySignature(data.getBytes(), dataSignature);
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
   private boolean isValid(Block newBlock) {
     Block tailBlock = blocks.get(blocks.size() - 1);
     if (!newBlock.getHash().startsWith(getPrefix()) || !Objects
@@ -129,14 +154,16 @@ public class Blockchain<T> {
     adjustComplexity(newBlock);
   }
 
-  private void outputStats(Block newBlock) {
+  private void outputStats(Block<T> newBlock) {
     System.out.printf("Block:\n");
     System.out.printf("Id: %s\n", newBlock.getId());
     System.out.printf("Created by miner # %s\n", newBlock.getMinerId());
     System.out.printf("Timestamp: %s\n", newBlock.getTimestamp());
     System.out.printf("Magic number: %s\n", newBlock.getMagicNumber());
     System.out.printf("Hash of the previous block:\n%s\n", newBlock.getHashPreviousBlock());
-    System.out.printf("Block data: \n%s\n", newBlock.getData());
+    System.out.printf("Block data: \n%s\n", newBlock.getData().stream().map(
+        x -> dataFormatter.format(x)
+    ).collect(Collectors.joining("\n")));
     System.out.printf("Magic number: %s\n", newBlock.getMagicNumber());
     System.out
         .printf("Block was generating for: %s seconds\n", getGenerationTime(newBlock) / 1000);
@@ -158,15 +185,15 @@ public class Blockchain<T> {
     }
   }
 
-  private Long getGenerationTime(Block newBlock) {
+  private Long getGenerationTime(Block<?> newBlock) {
     return tail() == null ? 0 : (newBlock.getTimestamp() - tail().getTimestamp());
   }
 
-  private boolean withinAcceptable(Block newBlock) {
+  private boolean withinAcceptable(Block<?> newBlock) {
     return Math.abs(getGenerationTime(newBlock) - ACCEPTABLE_TIME) <= 1000;
   }
 
-  private boolean validateAllChain(List<Block> blocks) {
+  private boolean validateAllChain(List<Block<T>> blocks) {
     for (int i = 1; i < blocks.size(); i++) {
       Block prev = blocks.get(i - 1);
       Block cur = blocks.get(i);

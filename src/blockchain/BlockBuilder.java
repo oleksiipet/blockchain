@@ -1,6 +1,9 @@
 package blockchain;
 
-public class BlockBuilder {
+import blockchain.data.SignedData;
+import java.io.Serializable;
+
+public class BlockBuilder<T extends SignedData & Serializable> {
 
   private Integer id;
   private Long minerId;
@@ -9,43 +12,39 @@ public class BlockBuilder {
   private Long timestamp;
   private Integer magicNumber;
   private String data;
+  private byte[] dataSignature;
 
-  public BlockBuilder withId(Integer id) {
+  public BlockBuilder<T> withId(Integer id) {
     this.id = id;
     return this;
   }
 
-  public BlockBuilder withMinerId(Long minerId) {
+  public BlockBuilder<T> withMinerId(Long minerId) {
     this.minerId = minerId;
     return this;
   }
 
-  public BlockBuilder withHashPreviousBlock(String hashPreviousBlock) {
+  public BlockBuilder<T> withHashPreviousBlock(String hashPreviousBlock) {
     this.hashPreviousBlock = hashPreviousBlock;
     return this;
   }
 
-  public BlockBuilder withHash(String hash) {
+  public BlockBuilder<T> withHash(String hash) {
     this.hash = hash;
     return this;
   }
 
-  public BlockBuilder withTimestamp(Long timestamp) {
+  public BlockBuilder<T> withTimestamp(Long timestamp) {
     this.timestamp = timestamp;
     return this;
   }
 
-  public BlockBuilder withMagicNumber(Integer magicNumber) {
+  public BlockBuilder<T> withMagicNumber(Integer magicNumber) {
     this.magicNumber = magicNumber;
     return this;
   }
 
-  public BlockBuilder withData(String data) {
-    this.data = data;
-    return this;
-  }
-
-  public Block build() {
-    return new Block(id, minerId, hashPreviousBlock, hash, timestamp, magicNumber, data);
+  public Block<T> build() {
+    return new Block<>(id, minerId, hashPreviousBlock, hash, timestamp, magicNumber);
   }
 }

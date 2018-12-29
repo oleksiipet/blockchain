@@ -1,33 +1,28 @@
 package blockchain;
 
+import blockchain.data.SignedData;
 import java.io.Serializable;
+import java.util.List;
 
-public class Block implements Serializable {
+public class Block<T extends SignedData & Serializable> implements Serializable {
 
   private final Integer id;
   private final Long minerId;
   private final String hashPreviousBlock;
   private final String hash;
-  private String data;
-  private byte[] dataSignature;
   private final Long timestamp;
   private final Integer magicNumber;
-  private final Long generationTime;
+  private List<T> data;
 
 
-  public Block(Integer id, Long minerId, String hashPreviousBlock, String hash, Long timestamp,
-      Integer magicNumber, String data) {
   public Block(Integer id, Long minerId, String hashPreviousBlock, String hash,
-      String data, byte[] dataSignature, Long timestamp, Integer magicNumber, Long generationTime) {
+      Long timestamp, Integer magicNumber) {
     this.id = id;
     this.minerId = minerId;
     this.hashPreviousBlock = hashPreviousBlock;
     this.hash = hash;
-    this.data = data;
-    this.dataSignature = dataSignature;
     this.timestamp = timestamp;
     this.magicNumber = magicNumber;
-    this.data = data;
   }
 
   public Integer getId() {
@@ -46,10 +41,6 @@ public class Block implements Serializable {
     return timestamp;
   }
 
-  public String getData() {
-    return data;
-  }
-
   public Integer getMagicNumber() {
     return magicNumber;
   }
@@ -58,7 +49,11 @@ public class Block implements Serializable {
     return minerId;
   }
 
-  public byte[] getDataSignature() {
-    return dataSignature;
+  public List<T> getData() {
+    return data;
+  }
+
+  public void setData(List<T> data) {
+    this.data = data;
   }
 }
