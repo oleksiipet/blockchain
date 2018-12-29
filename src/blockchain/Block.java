@@ -15,6 +15,8 @@ public class Block implements Serializable {
   private final Long generationTime;
 
 
+  public Block(Integer id, Long minerId, String hashPreviousBlock, String hash, Long timestamp,
+      Integer magicNumber, String data) {
   public Block(Integer id, Long minerId, String hashPreviousBlock, String hash,
       String data, byte[] dataSignature, Long timestamp, Integer magicNumber, Long generationTime) {
     this.id = id;
@@ -25,7 +27,7 @@ public class Block implements Serializable {
     this.dataSignature = dataSignature;
     this.timestamp = timestamp;
     this.magicNumber = magicNumber;
-    this.generationTime = generationTime;
+    this.data = data;
   }
 
   public Integer getId() {
@@ -50,10 +52,6 @@ public class Block implements Serializable {
 
   public Integer getMagicNumber() {
     return magicNumber;
-  }
-
-  public Long getGenerationTime() {
-    return generationTime;
   }
 
   public Long getMinerId() {

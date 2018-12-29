@@ -2,8 +2,8 @@ package blockchain.data;
 
 public class Message {
 
-  private String author;
-  private String text;
+  private final String author;
+  private final String text;
 
   public Message(String author, String text) {
     this.author = author;
