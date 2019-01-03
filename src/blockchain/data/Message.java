@@ -32,6 +32,11 @@ public class Message implements SignedData, Serializable {
   }
 
   @Override
+  public byte[] raw() {
+    return (getText() + id()).getBytes();
+  }
+
+  @Override
   public byte[] dataSignature() {
     return dataSignature;
   }

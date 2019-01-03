@@ -12,8 +12,11 @@ public class SignValidator {
   private PublicKey publicKey;
 
   public SignValidator(String publicKeyFilePath) throws Exception {
-    byte[] keyBytes = Files.readAllBytes(new File(publicKeyFilePath).toPath());
-    X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
+    this(Files.readAllBytes(new File(publicKeyFilePath).toPath()));
+  }
+
+  public SignValidator(byte[] publicKeyBytes) throws Exception {
+    X509EncodedKeySpec spec = new X509EncodedKeySpec(publicKeyBytes);
     KeyFactory kf = KeyFactory.getInstance("RSA");
     publicKey = kf.generatePublic(spec);
   }

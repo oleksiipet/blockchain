@@ -12,7 +12,7 @@ public class Block<T extends SignedData & Serializable> implements Serializable 
   private final String hash;
   private final Long timestamp;
   private final Integer magicNumber;
-  private List<T> data;
+  private List<T> data = List.of();
 
 
   public Block(Integer id, Long minerId, String hashPreviousBlock, String hash,

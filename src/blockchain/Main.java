@@ -1,10 +1,10 @@
 package blockchain;
 
 import blockchain.crypto.Sign;
-import blockchain.crypto.SignValidator;
 import blockchain.data.Message;
 import blockchain.data.format.PlainMessageFormat;
 import blockchain.io.FilePersister;
+import blockchain.io.Messenger;
 import blockchain.io.Persister;
 import blockchain.miners.Miner;
 import java.util.List;
@@ -16,46 +16,35 @@ public class Main {
 
   private static final String OUTPUT_FILE_NAME = "blockchain.ser";
   private static final int NUMBER_OF_MINERS = 10;
-  private static AtomicLong ids = new AtomicLong(1);
+  private final static AtomicLong minersIdGenerator = new AtomicLong(1);
 
   public static void main(String[] args) throws Exception {
 
-    Sign sign = new Sign("keys/privateKey");
-    SignValidator signValidator = new SignValidator("keys/publicKey");
+    Sign sign = new Sign("keys/privateKey", "keys/publicKey");
 
     Persister<Message> persister = new FilePersister<>(OUTPUT_FILE_NAME);
     Blockchain<Message> blockchain = new Blockchain<>(persister,
-        new PlainMessageFormat(), signValidator);
+        new PlainMessageFormat());
 
     List<Thread> miners = Stream
-        .generate(() -> new Thread(new Miner(blockchain, ids.getAndIncrement())))
+        .generate(() -> new Thread(new Miner<>(blockchain, minersIdGenerator.getAndIncrement())))
         .limit(NUMBER_OF_MINERS)
         .collect(Collectors.toList());
 
     miners.forEach(Thread::start);
 
+    Messenger messenger = new Messenger(blockchain, sign);
+
     Thread.sleep(1000);
-    blockchain.appendData(
-        new Message(blockchain.nextId(), "Tom", "Hey, I'm first!", sign.sign("Hey, I'm first!"),
-            null));
-    blockchain.appendData(
-        new Message(blockchain.nextId(), "Sarah", "It's not fair!", sign.sign("It's not fair!"),
-            null));
+    messenger.sendMessage("Tom", "Hey, I'm first!");
+    messenger.sendMessage("Sarah", "It's not fair!");
     Thread.sleep(2000);
-    blockchain.appendData(
-        new Message(blockchain.nextId(), "Sarah",
-            "You always will be first because it is your blockchain!",
-            sign.sign("You always will be first because it is your blockchain!"), null));
+    messenger.sendMessage("Sarah", "You always will be first because it is your blockchain!");
     Thread.sleep(1000);
-    blockchain.appendData(
-        new Message(blockchain.nextId(), "Sarah", "Anyway, thank you for this amazing chat.",
-            sign.sign("Anyway, thank you for this amazing chat."), null));
+    messenger.sendMessage("Sarah", "Anyway, thank you for this amazing chat.");
     Thread.sleep(2000);
-    blockchain.appendData(new Message(blockchain.nextId(), "Tom", "You're welcome :)",
-        sign.sign("You're welcome :)"), null));
-    blockchain
-        .appendData(new Message(blockchain.nextId(), "Nick", "Hey Tom, nice chat",
-            sign.sign("Hey Tom, nice chat"), null));
+    messenger.sendMessage("Tom", "You're welcome :)");
+    messenger.sendMessage("Nick", "Hey Tom, nice chat");
 
     miners.forEach(Thread::interrupt);
   }

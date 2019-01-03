@@ -9,10 +9,12 @@ import java.security.spec.PKCS8EncodedKeySpec;
 
 public class Sign {
 
-  private PrivateKey privateKey;
+  private final byte[] publicKeyBytes;
+  private final PrivateKey privateKey;
 
-  public Sign(String privateKeyPath) throws Exception {
+  public Sign(String privateKeyPath, String publicKeyFilePath) throws Exception {
     byte[] keyBytes = Files.readAllBytes(new File(privateKeyPath).toPath());
+    this.publicKeyBytes = Files.readAllBytes(new File(publicKeyFilePath).toPath());
     PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
     KeyFactory kf = KeyFactory.getInstance("RSA");
     this.privateKey = kf.generatePrivate(spec);
@@ -23,5 +25,9 @@ public class Sign {
     rsa.initSign(privateKey);
     rsa.update(text.getBytes());
     return rsa.sign();
+  }
+
+  public byte[] getPublicKeyBytes() {
+    return publicKeyBytes;
   }
 }

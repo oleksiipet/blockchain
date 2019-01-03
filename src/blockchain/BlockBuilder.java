@@ -11,8 +11,6 @@ public class BlockBuilder<T extends SignedData & Serializable> {
   private String hash;
   private Long timestamp;
   private Integer magicNumber;
-  private String data;
-  private byte[] dataSignature;
 
   public BlockBuilder<T> withId(Integer id) {
     this.id = id;

@@ -6,12 +6,14 @@ import blockchain.data.format.DataFormatter;
 import blockchain.io.Persister;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
-import java.util.StringJoiner;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -32,16 +34,13 @@ public class Blockchain<T extends SignedData & Serializable> {
 
   private int prefixLength;
   private DataFormatter<T> dataFormatter;
-  private SignValidator signValidator;
 
   private AtomicInteger idGenerator;
 
-  public Blockchain(Persister<T> persister, DataFormatter<T> dataFormatter,
-      SignValidator signValidator) {
+  public Blockchain(Persister<T> persister, DataFormatter<T> dataFormatter) {
     this.readWritelock = new ReentrantReadWriteLock();
     this.persister = persister;
     this.dataFormatter = dataFormatter;
-    this.signValidator = signValidator;
     this.prefixLength = 0;
     List<Block<T>> fileBlocks = persister.load();
     if (!fileBlocks.isEmpty() && validateAllChain(fileBlocks)) {
@@ -58,10 +57,10 @@ public class Blockchain<T extends SignedData & Serializable> {
       persister.save(fileBlocks);
     }
     pendingMessages = new LinkedList<>();
-    this.idGenerator = new AtomicInteger(blocks.get(blocks.size() - 1).getId());
+    this.idGenerator = new AtomicInteger(blocks.get(blocks.size() - 1).getId() + 1);
   }
 
-  public void accept(Block newBlock) {
+  public void accept(Block<T> newBlock) {
     WriteLock writeLock = readWritelock.writeLock();
     try {
       writeLock.lock();
@@ -77,16 +76,17 @@ public class Blockchain<T extends SignedData & Serializable> {
     }
   }
 
-  public void appendData(T data) {
+  public boolean appendData(T data) {
     WriteLock writeLock = readWritelock.writeLock();
     try {
       writeLock.lock();
-      if (isSigned(dataFormatter.format(data), data.dataSignature())) {
-        pendingMessages.add(data);
+      if (isSigned(data) && dataIdentityValid(data)) {
+        return pendingMessages.add(data);
       }
     } finally {
       writeLock.unlock();
     }
+    return false;
   }
 
   public String getPrefix() {
@@ -101,24 +101,7 @@ public class Blockchain<T extends SignedData & Serializable> {
     }
   }
 
-  public String pendingData() {
-    ReadLock readLock = readWritelock.readLock();
-    try {
-      readLock.lock();
-      StringJoiner stringJoiner = new StringJoiner("\n");
-      if (pendingMessages.isEmpty()) {
-        return "no messages";
-      }
-      pendingMessages.stream()
-          .map(dataFormatter::format)
-          .forEach(stringJoiner::add);
-      return stringJoiner.toString();
-    } finally {
-      readLock.unlock();
-    }
-  }
-
-  public Block tail() {
+  public Block<T> tail() {
     ReadLock readLock = readWritelock.readLock();
     try {
       readLock.lock();
@@ -128,13 +111,14 @@ public class Blockchain<T extends SignedData & Serializable> {
     }
   }
 
-  public Integer nextId() {
+  public Integer uniqueIdentity() {
     return idGenerator.incrementAndGet();
   }
 
-  private boolean isSigned(String data, byte[] dataSignature) {
+  private boolean isSigned(T data) {
     try {
-      return true;//return signValidator.verifySignature(data.getBytes(), dataSignature);
+      SignValidator signValidator = new SignValidator(data.publicKey());
+      return signValidator.verifySignature(data.raw(), data.dataSignature());
     } catch (Exception e) {
       return false;
     }
@@ -149,7 +133,7 @@ public class Blockchain<T extends SignedData & Serializable> {
     return true;
   }
 
-  private void outputAndAdjust(Block newBlock) {
+  private void outputAndAdjust(Block<T> newBlock) {
     outputStats(newBlock);
     adjustComplexity(newBlock);
   }
@@ -169,7 +153,7 @@ public class Blockchain<T extends SignedData & Serializable> {
         .printf("Block was generating for: %s seconds\n", getGenerationTime(newBlock) / 1000);
   }
 
-  private void adjustComplexity(Block newBlock) {
+  private void adjustComplexity(Block<T> newBlock) {
     if (!withinAcceptable(newBlock)) {
       if (ACCEPTABLE_TIME < getGenerationTime(newBlock)) {
         if (prefixLength > 0) {
@@ -195,13 +179,42 @@ public class Blockchain<T extends SignedData & Serializable> {
 
   private boolean validateAllChain(List<Block<T>> blocks) {
     for (int i = 1; i < blocks.size(); i++) {
-      Block prev = blocks.get(i - 1);
-      Block cur = blocks.get(i);
-      if (!Objects.equals(prev.getHash(), cur.getHashPreviousBlock())) {
+      Block<T> prev = blocks.get(i - 1);
+      Block<T> cur = blocks.get(i);
+      Stream<T> concatData = Stream.concat(
+          Objects.requireNonNullElse(prev.getData(), new ArrayList<T>()).stream(),
+          Objects.requireNonNullElse(cur.getData(), new ArrayList<T>()).stream());
+      if (!Objects.equals(prev.getHash(), cur.getHashPreviousBlock())
+          && dataIdentityValid(concatData.collect(Collectors.toList()))) {
         return false;
       }
     }
     return true;
   }
 
+  private boolean dataIdentityValid(List<T> jointBlocks) {
+    for (int i = 1; i < jointBlocks.size(); i++) {
+      if (Objects.compare(jointBlocks.get(i - 1), jointBlocks.get(i),
+          Comparator.comparing(T::id)) > 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private boolean dataIdentityValid(T data) {
+    Optional<T> lastEntry = getLastEntry();
+    return lastEntry
+        .map(t -> t.id() < data.id())
+        .orElse(true);
+  }
+
+  private Optional<T> getLastEntry() {
+    return blocks.stream()
+        .map(Block::getData)
+        .filter(List::isEmpty)
+        .flatMap(Collection::stream)
+        .limit(1)
+        .findFirst();
+  }
 }
