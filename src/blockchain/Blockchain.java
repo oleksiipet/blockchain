@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -36,8 +37,11 @@ public class Blockchain<T extends SignedData & Serializable> {
   private DataFormatter<T> dataFormatter;
 
   private AtomicInteger idGenerator;
+  private BiFunction<Integer, String, Optional<T>> systemFeedback;
 
-  public Blockchain(Persister<T> persister, DataFormatter<T> dataFormatter) {
+  public Blockchain(Persister<T> persister, DataFormatter<T> dataFormatter,
+      BiFunction<Integer, String, Optional<T>> systemFeedback) {
+    this.systemFeedback = systemFeedback;
     this.readWritelock = new ReentrantReadWriteLock();
     this.persister = persister;
     this.dataFormatter = dataFormatter;
@@ -65,6 +69,7 @@ public class Blockchain<T extends SignedData & Serializable> {
     try {
       writeLock.lock();
       if (isValid(newBlock)) {
+        applyFeedback(String.format("miner%d", newBlock.getMinerId()));
         newBlock.setData(new ArrayList<>(pendingMessages));
         outputAndAdjust(newBlock);
         blocks.add(newBlock);
@@ -113,6 +118,19 @@ public class Blockchain<T extends SignedData & Serializable> {
 
   public Integer uniqueIdentity() {
     return idGenerator.incrementAndGet();
+  }
+
+  public Stream<T> data() {
+    ReadLock readLock = readWritelock.readLock();
+    try {
+      readLock.lock();
+      return blocks.stream()
+          .map(Block::getData)
+          .filter(List::isEmpty)
+          .flatMap(Collection::stream);
+    } finally {
+      readLock.unlock();
+    }
   }
 
   private boolean isSigned(T data) {
@@ -216,5 +234,12 @@ public class Blockchain<T extends SignedData & Serializable> {
         .flatMap(Collection::stream)
         .limit(1)
         .findFirst();
+  }
+
+  private void applyFeedback(String miner) {
+    Optional<T> feedback = systemFeedback.apply(uniqueIdentity(), miner);
+    feedback.ifPresent(
+        this::appendData
+    );
   }
 }

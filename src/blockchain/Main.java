@@ -1,13 +1,14 @@
 package blockchain;
 
 import blockchain.crypto.Sign;
-import blockchain.data.Message;
-import blockchain.data.format.PlainMessageFormat;
+import blockchain.data.Transaction;
+import blockchain.data.format.TransactionPrintFormat;
 import blockchain.io.FilePersister;
-import blockchain.io.Messenger;
 import blockchain.io.Persister;
+import blockchain.io.Wallet;
 import blockchain.miners.Miner;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -22,9 +23,18 @@ public class Main {
 
     Sign sign = new Sign("keys/privateKey", "keys/publicKey");
 
-    Persister<Message> persister = new FilePersister<>(OUTPUT_FILE_NAME);
-    Blockchain<Message> blockchain = new Blockchain<>(persister,
-        new PlainMessageFormat());
+    Persister<Transaction> persister = new FilePersister<>(OUTPUT_FILE_NAME);
+    Blockchain<Transaction> blockchain = new Blockchain<>(persister, new TransactionPrintFormat(),
+        (id, x) -> {
+          try {
+            return Optional.of(new
+                Transaction(id, "System", x, 100.0,
+                sign.sign(String.format("%s,%s,%s", "System", x, 100.0) + id),
+                sign.getPublicKeyBytes()));
+          } catch (Exception e) {
+            return Optional.empty();
+          }
+        });
 
     List<Thread> miners = Stream
         .generate(() -> new Thread(new Miner<>(blockchain, minersIdGenerator.getAndIncrement())))
@@ -33,18 +43,26 @@ public class Main {
 
     miners.forEach(Thread::start);
 
-    Messenger messenger = new Messenger(blockchain, sign);
+    Wallet wallet = new Wallet(blockchain, sign);
 
-    Thread.sleep(1000);
-    messenger.sendMessage("Tom", "Hey, I'm first!");
-    messenger.sendMessage("Sarah", "It's not fair!");
+    wallet.sendMoney("miner9", "miner1", 30);
+    wallet.sendMoney("miner9", "miner2", 30);
+    wallet.sendMoney("miner9", "Nick", 30);
     Thread.sleep(2000);
-    messenger.sendMessage("Sarah", "You always will be first because it is your blockchain!");
-    Thread.sleep(1000);
-    messenger.sendMessage("Sarah", "Anyway, thank you for this amazing chat.");
-    Thread.sleep(2000);
-    messenger.sendMessage("Tom", "You're welcome :)");
-    messenger.sendMessage("Nick", "Hey Tom, nice chat");
+    wallet.sendMoney("miner9", "Bob", 10);
+    wallet.sendMoney("miner7", "Alice", 10);
+    wallet.sendMoney("Nick", "ShoesShop", 1);
+    wallet.sendMoney("Nick", "FastFood", 2);
+    wallet.sendMoney("Nick", "CarShop", 15);
+    wallet.sendMoney("miner7", "CarShop", 90);
+    Thread.sleep(3000);
+    wallet.sendMoney("CarShop", "Worker1", 10);
+    wallet.sendMoney("CarShop", "Worker2", 10);
+    wallet.sendMoney("CarShop", "Worker3", 10);
+    wallet.sendMoney("CarShop", "Director1", 30);
+    wallet.sendMoney("CarShop", "CarPartsShop", 45);
+    wallet.sendMoney("Bob", "GamingShop", 5);
+    wallet.sendMoney("Alice", "BeautyShop", 5);
 
     miners.forEach(Thread::interrupt);
   }
