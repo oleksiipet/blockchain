@@ -8,7 +8,6 @@ import blockchain.io.Persister;
 import blockchain.io.Wallet;
 import blockchain.miners.Miner;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -25,16 +24,7 @@ public class Main {
 
     Persister<Transaction> persister = new FilePersister<>(OUTPUT_FILE_NAME);
     Blockchain<Transaction> blockchain = new Blockchain<>(persister, new TransactionPrintFormat(),
-        (id, x) -> {
-          try {
-            return Optional.of(new
-                Transaction(id, "System", x, 100.0,
-                sign.sign(String.format("%s,%s,%s", "System", x, 100.0) + id),
-                sign.getPublicKeyBytes()));
-          } catch (Exception e) {
-            return Optional.empty();
-          }
-        });
+        new PayForMining(sign));
 
     List<Thread> miners = Stream
         .generate(() -> new Thread(new Miner<>(blockchain, minersIdGenerator.getAndIncrement())))

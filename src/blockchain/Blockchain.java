@@ -40,7 +40,7 @@ public class Blockchain<T extends SignedData & Serializable> {
   private BiFunction<Integer, String, Optional<T>> systemFeedback;
 
   public Blockchain(Persister<T> persister, DataFormatter<T> dataFormatter,
-      BiFunction<Integer, String, Optional<T>> systemFeedback) {
+      SystemFeedback<T> systemFeedback) {
     this.systemFeedback = systemFeedback;
     this.readWritelock = new ReentrantReadWriteLock();
     this.persister = persister;
@@ -121,16 +121,10 @@ public class Blockchain<T extends SignedData & Serializable> {
   }
 
   public Stream<T> data() {
-    ReadLock readLock = readWritelock.readLock();
-    try {
-      readLock.lock();
-      return blocks.stream()
+      return new ArrayList<>(blocks).stream()
           .map(Block::getData)
           .filter(List::isEmpty)
           .flatMap(Collection::stream);
-    } finally {
-      readLock.unlock();
-    }
   }
 
   private boolean isSigned(T data) {

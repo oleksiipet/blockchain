@@ -14,7 +14,6 @@ import java.util.List;
 
 public class FilePersister<T extends SignedData & Serializable> implements Persister<T> {
 
-
   private final String filename;
 
   public FilePersister(String filename) {
